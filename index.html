@@ -1,243 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>손안의 무대</title>
-
-  <style>
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      overflow: hidden;
-      background: #111;
-      color: white;
-      font-family: sans-serif;
-    }
-
-    video, canvas {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    video { object-fit: cover; }
-    canvas { pointer-events: none; }
-
-    #caption {
-      position: fixed;
-      left: 20px;
-      right: 20px;
-      bottom: max(32px, env(safe-area-inset-bottom));
-      text-align: center;
-      pointer-events: none;
-      text-shadow: 0 2px 10px #000;
-    }
-
-    h1 { margin: 0 0 8px; font-size: 28px; }
-    p { margin: 0; font-size: 14px; }
-
-    #status {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      right: 20px;
-      padding: 12px;
-      border-radius: 10px;
-      background: #000b;
-      text-align: center;
-    }
-
-    #retry {
-      margin-top: 10px;
-      padding: 10px 16px;
-      border: 0;
-      border-radius: 8px;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>현실 속 작은 무대 — AR</title>
+<script type="module" src="https://unpkg.com/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#151821;color:#fff;font-family:system-ui,sans-serif}model-viewer{display:block;width:100%;height:100vh;height:100dvh;background:radial-gradient(ellipse at center,#333c50,#151821)}header{position:fixed;top:max(24px,env(safe-area-inset-top));left:24px;right:24px;pointer-events:none}h1{font-size:26px;margin:0 0 10px}p{line-height:1.6;margin:0;color:#cbd2df}footer{position:fixed;bottom:max(28px,env(safe-area-inset-bottom));left:20px;right:20px;text-align:center}button{border:0;border-radius:14px;padding:16px 26px;background:#ffd18a;color:#171717;font-size:17px;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:default}#status{font-size:14px;margin:12px auto;max-width:480px}#platform{font-size:12px;margin-top:8px}
+</style>
 </head>
-
 <body>
-  <video id="camera" autoplay muted playsinline></video>
+<!-- 아래 JavaScript의 MODEL에 동일한 작품의 GLB / USDZ를 지정합니다. -->
+<model-viewer id="viewer" alt="현실 공간에 배치할 3D 모델" ar ar-placement="floor" ar-scale="auto" camera-controls touch-action="pan-y" shadow-intensity="1" loading="eager" reveal="auto">
+  <!-- 기본 AR 버튼 대신 아래의 공통 버튼으로 실행합니다. -->
+  <span slot="ar-button" hidden></span>
+</model-viewer>
+<header><h1>현실 속 작은 무대</h1><p>AR로 배치하고, 손가락으로 옮기거나<br>두 손가락으로 크기를 조절하세요.</p></header>
+<footer>
+<p id="status" role="status" aria-live="polite">모델을 불러오는 중입니다.</p>
+<button id="start" type="button" disabled>AR 준비 중</button>
+<p id="platform"></p>
+</footer>
+<script type="module">
+// 샘플로 먼저 테스트하세요. 실제 작품 제작 후 두 경로만 바꾸면 됩니다.
+const MODEL = {
+  glb: 'https://modelviewer.dev/shared-assets/models/Astronaut.glb',
+  usdz: 'https://modelviewer.dev/shared-assets/models/Astronaut.usdz'
+  // glb: './models/stage.glb',
+  // usdz: './models/stage.usdz'
+};
+const viewer = document.querySelector('#viewer');
+const start = document.querySelector('#start');
+const status = document.querySelector('#status');
+const platform = document.querySelector('#platform');
+const ua = navigator.userAgent;
+const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(ua);
+let loaded = false;
+let launching = false;
 
-  <div id="caption">
-    <h1 id="title">만남</h1>
-    <p>화면을 터치하면 관계가 바뀝니다.</p>
-  </div>
+// 사용자 에이전트는 실행 경로 선택에만 사용합니다.
+// 실제 실행 가능 여부는 model-viewer의 canActivateAR로 확인합니다.
+viewer.setAttribute('ar-modes', isIOS ? 'quick-look' :
+  isAndroid ? 'webxr scene-viewer' : 'webxr');
+viewer.setAttribute('ios-src', MODEL.usdz);
+platform.textContent = isIOS ? 'iPhone / iPad · Quick Look' :
+  isAndroid ? 'Android · WebXR 우선 / Scene Viewer 대체' :
+  '컴퓨터에서는 미리보기 · AR 지원 휴대전화로 접속하세요';
 
-  <div id="status" role="status">
-    <span id="message">카메라를 준비하고 있습니다.</span>
-    <br>
-    <button id="retry" hidden>카메라 다시 시작</button>
-  </div>
+function updateButton() {
+  const supported = loaded && viewer.canActivateAR;
+  start.disabled = !supported || launching;
+  start.textContent = launching ? 'AR 실행 중…' :
+    supported ? '현실 공간에 배치하기' : 'AR 실행 불가';
+}
 
-  <script type="module">
-    import * as THREE from
-      "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js";
+viewer.addEventListener('load', () => {
+  loaded = true;
+  updateButton();
+  status.textContent = viewer.canActivateAR
+    ? '준비 완료. AR을 시작한 뒤 밝은 바닥이나 책상을 비춰 주세요.'
+    : '이 환경에서 AR을 실행할 수 없습니다. 지원 휴대전화의 Safari 또는 Chrome으로 열어 주세요.';
+});
+viewer.addEventListener('error', () => {
+  loaded = false;
+  updateButton();
+  status.textContent = '모델 로딩 실패. 인터넷 연결과 모델 파일 주소를 확인해 주세요.';
+});
+viewer.addEventListener('ar-status', ({ detail }) => {
+  if (detail.status === 'failed') {
+    status.textContent = 'AR 실행 실패. 카메라 권한과 기기 지원 여부를 확인해 주세요.';
+  } else if (detail.status === 'object-placed') {
+    status.textContent = '배치 완료. 드래그로 이동하고 핀치로 크기를 바꾸세요.';
+  }
+});
+start.addEventListener('click', async () => {
+  if (launching || !loaded || !viewer.canActivateAR) return;
+  launching = true;
+  updateButton();
+  try {
+    // 버튼 클릭 안에서 직접 실행해 브라우저의 사용자 동작 조건을 충족합니다.
+    await viewer.activateAR();
+  } catch (error) {
+    status.textContent = 'AR을 시작하지 못했습니다. 권한을 확인한 뒤 다시 시도해 주세요.';
+    console.error(error);
+  } finally {
+    launching = false;
+    updateButton();
+  }
+});
+viewer.setAttribute('src', MODEL.glb);
 
-    const video = document.querySelector("#camera");
-    const status = document.querySelector("#status");
-    const message = document.querySelector("#message");
-    const retry = document.querySelector("#retry");
-
-    // 카메라 영상 위에 투명한 3D 화면을 겹칩니다.
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true
-    });
-
-    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0);
-    document.body.prepend(renderer.domElement);
-    renderer.domElement.style.zIndex = "1";
-    document.querySelector("#caption").style.zIndex = "2";
-    status.style.zIndex = "3";
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
-
-    const stage = new THREE.Group();
-    scene.add(stage);
-
-    // 무대
-    const floor = new THREE.Mesh(
-      new THREE.BoxGeometry(3.4, 0.12, 2.2),
-      new THREE.MeshStandardMaterial({
-        color: 0x343444,
-        roughness: 0.85
-      })
-    );
-    floor.position.y = -0.06;
-    stage.add(floor);
-
-    // 단순한 사람 모양의 배우
-    function makeActor(color) {
-      const actor = new THREE.Group();
-      const material = new THREE.MeshStandardMaterial({ color });
-
-      const body = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.12, 0.18, 0.6, 20),
-        material
-      );
-      body.position.y = 0.3;
-
-      const head = new THREE.Mesh(
-        new THREE.SphereGeometry(0.14, 20, 16),
-        material
-      );
-      head.position.y = 0.76;
-
-      actor.add(body, head);
-      stage.add(actor);
-      return actor;
-    }
-
-    const actorA = makeActor(0xffe6c9);
-    const actorB = makeActor(0xc2dbff);
-    actorA.position.x = -0.35;
-    actorB.position.x = 0.35;
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-
-    const light = new THREE.PointLight(0xffcc88, 30);
-    light.position.set(0, 3, 2);
-    scene.add(light);
-
-    // タップごとに、距離・奥行き・光を変更
-    let separated = false;
-    let ready = false;
-    const targetColor = new THREE.Color(0xffcc88);
-
-    document.body.addEventListener("click", (event) => {
-      if (!ready || event.target.closest("button")) return;
-
-      separated = !separated;
-      targetColor.set(separated ? 0x729dff : 0xffcc88);
-
-      document.querySelector("#title").textContent =
-        separated ? "断絶".replace("断絶", "단절") : "만남";
-    });
-
-    function resize() {
-      const aspect = innerWidth / innerHeight;
-      renderer.setSize(innerWidth, innerHeight);
-      camera.aspect = aspect;
-
-      // 세로 화면에서도 무대 전체가 보이도록 거리 조절
-      const distance = Math.max(5.8, 3 / aspect);
-      camera.position.set(0, distance * 0.6, distance);
-      camera.lookAt(0, 0.2, 0);
-      camera.updateProjectionMatrix();
-    }
-
-    addEventListener("resize", resize);
-    resize();
-
-    const clock = new THREE.Clock();
-
-    renderer.setAnimationLoop(() => {
-      const delta = Math.min(clock.getDelta(), 0.1);
-      const blend = 1 - Math.exp(-4 * delta);
-      const distance = separated ? 1.15 : 0.35;
-      const depth = separated ? 0.4 : 0;
-
-      actorA.position.x = THREE.MathUtils.lerp(
-        actorA.position.x, -distance, blend
-      );
-      actorB.position.x = THREE.MathUtils.lerp(
-        actorB.position.x, distance, blend
-      );
-      actorA.position.z = THREE.MathUtils.lerp(
-        actorA.position.z, depth, blend
-      );
-      actorB.position.z = THREE.MathUtils.lerp(
-        actorB.position.z, -depth, blend
-      );
-
-      light.color.lerp(targetColor, blend);
-      renderer.render(scene, camera);
-    });
-
-    // 시작 버튼 없이 카메라 권한을 바로 요청합니다.
-    async function startCamera() {
-      retry.hidden = true;
-
-      if (!navigator.mediaDevices?.getUserMedia) {
-        message.textContent =
-          "HTTPS 주소를 Safari 또는 Chrome으로 열어 주세요.";
-        return;
-      }
-
-      try {
-        message.textContent = "카메라 접근을 허용해 주세요.";
-
-        if (!video.srcObject) {
-          video.srcObject =
-            await navigator.mediaDevices.getUserMedia({
-              audio: false,
-              video: {
-                facingMode: { ideal: "environment" },
-                width: { ideal: 1280 },
-                height: { ideal: 720 }
-              }
-            });
-        }
-
-        await video.play();
-        ready = true;
-        status.hidden = true;
-      } catch (error) {
-        message.textContent =
-          "카메라를 시작하지 못했습니다. 권한을 확인한 뒤 다시 눌러 주세요.";
-        retry.hidden = false;
-      }
-    }
-
-    retry.addEventListener("click", startCamera);
-    startCamera();
-  </script>
+// 라이브러리를 불러오지 못했거나 네트워크가 느린 경우 안내합니다.
+setTimeout(() => {
+  if (!customElements.get('model-viewer')) {
+    status.textContent = 'AR 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인하고 새로고침해 주세요.';
+  } else if (!loaded) {
+    status.textContent = '모델 로딩이 지연되고 있습니다. 인터넷 연결을 확인해 주세요.';
+  }
+}, 20000);
+</script>
 </body>
 </html>
