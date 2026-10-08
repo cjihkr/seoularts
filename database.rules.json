@@ -1,0 +1,11 @@
+{
+  "rules": {
+    "votes": {
+      "$voteId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "newData.hasChildren(['scores', 'updatedAt']) && newData.child('scores').hasChildren(['survival', 'goodness', 'wealth', 'honor']) && newData.child('scores/survival').isNumber() && newData.child('scores/goodness').isNumber() && newData.child('scores/wealth').isNumber() && newData.child('scores/honor').isNumber() && newData.child('scores/survival').val() >= 1 && newData.child('scores/survival').val() <= 5 && newData.child('scores/goodness').val() >= 1 && newData.child('scores/goodness').val() <= 5 && newData.child('scores/wealth').val() >= 1 && newData.child('scores/wealth').val() <= 5 && newData.child('scores/honor').val() >= 1 && newData.child('scores/honor').val() <= 5"
+      }
+    }
+  }
+}

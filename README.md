@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Seoul Arts Poll Demo
 
-## Getting Started
+서울예술대학교 입시 발표용으로 만든 간단한 투표 사이트입니다.
 
-First, run the development server:
+## 기능
+
+- 로그인 없이 접속 가능
+- 질문 하나가 먼저 노출됨
+- 예 / 아니오 버튼으로 투표 가능
+- 브라우저 localStorage를 이용해 중복 투표 방지
+- Firebase Realtime Database와 연결하여 실시간 집계 가능
+
+## 실행 방법
+
+1. Firebase 프로젝트를 생성하고 Realtime Database를 활성화합니다.
+2. 루트 디렉터리에 `.env.local` 파일을 생성합니다.
+3. 아래 값을 넣고 프로젝트를 실행합니다.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your_project-default-rtdb.firebaseio.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. 개발 서버 실행
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+yarn dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. 브라우저에서 http://localhost:3000 으로 접속합니다.
 
-## Learn More
+## Firebase 데이터 구조
 
-To learn more about Next.js, take a look at the following resources:
+```json
+{
+  "polls": {
+    "current": {
+      "question": "서울예술대학교에 진학하는 것이 가장 의미 있는 선택이라고 생각하나요?",
+      "yes": 12,
+      "no": 8,
+      "updatedAt": "2026-08-16T00:00:00.000Z"
+    }
+  }
+}
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> 환경 변수가 비어 있으면 앱은 Firebase 없이 로컬 데모 모드로 동작합니다.

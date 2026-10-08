@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /votes/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.scores.survival is int
+        && request.resource.data.scores.goodness is int
+        && request.resource.data.scores.wealth is int
+        && request.resource.data.scores.honor is int
+        && request.resource.data.scores.survival >= 1
+        && request.resource.data.scores.survival <= 5
+        && request.resource.data.scores.goodness >= 1
+        && request.resource.data.scores.goodness <= 5
+        && request.resource.data.scores.wealth >= 1
+        && request.resource.data.scores.wealth <= 5
+        && request.resource.data.scores.honor >= 1
+        && request.resource.data.scores.honor <= 5;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
