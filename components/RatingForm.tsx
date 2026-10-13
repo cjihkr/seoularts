@@ -70,7 +70,7 @@ export default function RatingForm() {
       <div className="actions">
         {!submitted && (
           <button className="primary" onClick={submit} disabled={!complete || saving}>
-            {saving ? "저장 중…" : "평가하기"}
+            {saving ? "저장 중…" : "투표하기"}
           </button>
         )}
         {submitted && <p className="message">투표가 완료되었어요.</p>}
