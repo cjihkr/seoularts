@@ -1,17 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMyVote, saveVote, type Scores } from "../lib/vote";
+import { getMyVote, saveVote, type Answer } from "../lib/vote";
 
-const items: { key: keyof Scores; label: string }[] = [
-  { key: "survival", label: "생존력" },
-  { key: "goodness", label: "선함" },
-  { key: "wealth", label: "부유함" },
-  { key: "honor", label: "명예로움" },
+const answers: { value: Answer; label: string }[] = [
+  { value: "yes", label: "예" },
+  { value: "no", label: "아니오" },
+  { value: "unknown", label: "알 수 없음" },
 ];
 
 export default function RatingForm() {
-  const [scores, setScores] = useState<Scores>({ survival: 0, goodness: 0, wealth: 0, honor: 0 });
+  const [answer, setAnswer] = useState<Answer | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -21,65 +20,60 @@ export default function RatingForm() {
     getMyVote()
       .then((vote) => {
         if (vote) {
-          setScores(vote);
+          setAnswer(vote);
           setSubmitted(true);
         }
       })
-      .catch(() => setError("평가 데이터를 불러오지 못했습니다."))
+      .catch(() => setError("평가 데이터를 불러오지 못했어요."))
       .finally(() => setLoading(false));
   }, []);
 
-  const setScore = (key: keyof Scores, value: number) => {
-    setScores((prev) => ({ ...prev, [key]: value }));
+  const selectAnswer = (value: Answer) => {
+    setAnswer(value);
     setError("");
   };
 
-  const complete = Object.values(scores).every((value) => value >= 1 && value <= 5);
+  const complete = answer !== null;
 
   async function submit() {
-    if (!complete) return;
+    if (!answer) return;
     setSaving(true);
     setError("");
     try {
-      await saveVote(scores);
+      await saveVote(answer);
       setSubmitted(true);
     } catch {
-      setError("평가를 저장하지 못했습니다. Firebase Realtime Database 설정을 확인해 주세요.");
+      setError("오류가 발생했어요. 투표를 전송하지 못했어요.");
     } finally {
       setSaving(false);
     }
   }
 
-  if (loading) return <p className="message">평가 시스템을 준비하고 있습니다…</p>;
+  if (loading) return <p className="message">투표 시스템을 준비하고 있어요…</p>;
 
   return (
     <>
-      <div className="ratings">
-        {items.map(({ key, label }) => (
-          <div className="rating-row" key={key}>
-            <div className="rating-name">{label}</div>
-            <div className="stars" role="radiogroup" aria-label={`${label} 평가`}>
-              {[1, 2, 3, 4, 5].map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={`star ${scores[key] === value ? "selected" : ""}`}
-                  onClick={() => setScore(key, value)}
-                  aria-label={`${value}점`}
-                >
-                  {value}
-                </button>
-              ))}
-            </div>
-          </div>
+      <div className="answers" role="radiogroup" aria-label="투표 답변">
+        {answers.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            className={`answer ${answer === value ? "selected" : ""}`}
+            onClick={() => selectAnswer(value)}
+            aria-pressed={answer === value}
+          >
+            {label}
+          </button>
         ))}
       </div>
 
       <div className="actions">
-        <button className="primary" onClick={submit} disabled={!complete || saving}>
-          {saving ? "저장 중…" : submitted ? "다시 평가하기" : "평가하기"}
-        </button>
-        {submitted && <p className="message">평가가 완료되었습니다. 시연용 사이트에서는 점수를 다시 수정할 수 있습니다.</p>}
+        {!submitted && (
+          <button className="primary" onClick={submit} disabled={!complete || saving}>
+            {saving ? "저장 중…" : "평가하기"}
+          </button>
+        )}
+        {submitted && <p className="message">투표가 완료되었어요.</p>}
         {error && <p className="message error">{error}</p>}
       </div>
     </>

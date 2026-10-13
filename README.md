@@ -6,7 +6,7 @@
 
 - 로그인 없이 접속 가능
 - 질문 하나가 먼저 노출됨
-- 예 / 아니오 버튼으로 투표 가능
+- 예 / 아니오 / 알 수 없음 중 하나를 선택해 투표 가능
 - 브라우저 localStorage를 이용해 중복 투표 방지
 - Firebase Realtime Database와 연결하여 실시간 집계 가능
 
@@ -36,17 +36,15 @@ yarn dev
 
 ## Firebase 데이터 구조
 
+투표는 Realtime Database의 `votes/{clientId}`에 다음 형태로 저장됩니다.
+
 ```json
 {
-  "polls": {
-    "current": {
-      "question": "서울예술대학교에 진학하는 것이 가장 의미 있는 선택이라고 생각하나요?",
-      "yes": 12,
-      "no": 8,
-      "updatedAt": "2026-08-16T00:00:00.000Z"
-    }
-  }
+  "answer": "yes",
+  "updatedAt": 1760000000000
 }
 ```
+
+`answer`는 `yes`, `no`, `unknown` 중 하나입니다. 기존 점수 데이터는 새 투표 구조와 호환되지 않으므로 배포 전에 `votes` 노드를 비우고 새 규칙을 적용해야 합니다.
 
 > 환경 변수가 비어 있으면 앱은 Firebase 없이 로컬 데모 모드로 동작합니다.

@@ -1,19 +1,9 @@
 import { get, onValue, ref, set, type Unsubscribe } from "firebase/database";
 import { database } from "./firebase";
 
-export type Scores = {
-  survival: number;
-  goodness: number;
-  wealth: number;
-  honor: number;
-};
+export type Answer = "yes" | "no" | "unknown";
 
-export const EMPTY_SCORES: Scores = {
-  survival: 0,
-  goodness: 0,
-  wealth: 0,
-  honor: 0,
-};
+export const ANSWERS: Answer[] = ["yes", "no", "unknown"];
 
 const STORAGE_KEY = "sente-vote-id";
 
@@ -27,31 +17,31 @@ export function getClientId(): string {
   return id;
 }
 
-export async function getMyVote(): Promise<Scores | null> {
+export async function getMyVote(): Promise<Answer | null> {
   const id = getClientId();
   if (!id) return null;
   const snapshot = await get(ref(database, `votes/${id}`));
   if (!snapshot.exists()) return null;
   const value = snapshot.val();
-  return value?.scores ?? null;
+  return ANSWERS.includes(value?.answer) ? value.answer : null;
 }
 
-export async function saveVote(scores: Scores) {
+export async function saveVote(answer: Answer) {
   const id = getClientId();
   if (!id) throw new Error("브라우저 식별자를 만들 수 없습니다.");
 
   await set(ref(database, `votes/${id}`), {
-    scores,
+    answer,
     updatedAt: Date.now(),
   });
 }
 
-export function subscribeToVotes(callback: (votes: Scores[]) => void): Unsubscribe {
+export function subscribeToVotes(callback: (votes: Answer[]) => void): Unsubscribe {
   return onValue(ref(database, "votes"), (snapshot) => {
     const value = snapshot.val() ?? {};
     const votes = Object.values(value)
-      .map((item) => (item as { scores?: Scores }).scores)
-      .filter((scores): scores is Scores => Boolean(scores));
+      .map((item) => (item as { answer?: unknown }).answer)
+      .filter((answer): answer is Answer => ANSWERS.includes(answer as Answer));
     callback(votes);
   });
 }

@@ -1,214 +1,70 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onValue, ref } from "firebase/database";
-import { database } from "../../lib/firebase";
+import { subscribeToVotes, type Answer } from "../../lib/vote";
 
-type Scores = {
-  survival: number;
-  goodness: number;
-  wealth: number;
-  honor: number;
+const answerLabels: Record<Answer, string> = {
+  yes: "예",
+  no: "아니오",
+  unknown: "알 수 없음",
 };
 
-const defaultScores: Scores = {
-  survival: 0,
-  goodness: 0,
-  wealth: 0,
-  honor: 0,
-};
+const answers: Answer[] = ["yes", "no", "unknown"];
 
-function averageToPercent(total: number, count: number) {
-  if (count === 0) return 0;
-  return Math.round((total / (count * 5)) * 100);
-}
-
-function SurvivalCircle({ value }: { value: number }) {
-  const radius = 105;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (value / 100) * circumference;
-
-  return (
-    <div className="survival">
-      <svg
-        className="survival-circle"
-        width="280"
-        height="280"
-        viewBox="0 0 280 280"
-      >
-        <circle
-          cx="140"
-          cy="140"
-          r={radius}
-          fill="none"
-          stroke="#252525"
-          strokeWidth="18"
-        />
-
-        <circle
-          cx="140"
-          cy="140"
-          r={radius}
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth="18"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          transform="rotate(-90 140 140)"
-        />
-      </svg>
-
-      <div className="survival-value">
-        <span>{value}</span>
-        <small>%</small>
-      </div>
-
-      <div className="survival-label">생존력</div>
-    </div>
-  );
-}
-
-function StatusBar({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
-  return (
-    <div style={{ width: "100%", marginBottom: "32px" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "10px",
-          color: "#fff",
-        }}
-      >
-        <span style={{ fontSize: "20px", fontWeight: 500 }}>
-          {label}
-        </span>
-
-        <strong style={{ fontSize: "22px" }}>
-          {value}%
-        </strong>
-      </div>
-
-      <div
-        style={{
-          width: "100%",
-          height: "18px",
-          backgroundColor: "#333",
-          borderRadius: "999px",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            width: `${value}%`,
-            height: "100%",
-            backgroundColor: "#fff",
-            borderRadius: "999px",
-            transition: "width 0.8s ease",
-          }}
-        />
-      </div>
-    </div>
-  );
+function percentage(count: number, total: number) {
+  return total === 0 ? 0 : Math.round((count / total) * 100);
 }
 
 export default function StatisticsPage() {
-  const [scores, setScores] = useState<Scores>(defaultScores);
-  const [voteCount, setVoteCount] = useState(0);
+  const [counts, setCounts] = useState<Record<Answer, number>>({
+    yes: 0,
+    no: 0,
+    unknown: 0,
+  });
 
   useEffect(() => {
-    const votesRef = ref(database, "votes");
-
-    const unsubscribe = onValue(votesRef, (snapshot) => {
-      const data = snapshot.val();
-
-      if (!data) {
-        setScores(defaultScores);
-        setVoteCount(0);
-        return;
-      }
-
-      const votes = Object.values(data) as Array<{
-        scores?: {
-          survival?: number;
-          goodness?: number;
-          wealth?: number;
-          honor?: number;
-        };
-      }>;
-
-      const totals = {
-        survival: 0,
-        goodness: 0,
-        wealth: 0,
-        honor: 0,
-      };
-
-      votes.forEach((vote) => {
-        totals.survival += vote.scores?.survival ?? 0;
-        totals.goodness += vote.scores?.goodness ?? 0;
-        totals.wealth += vote.scores?.wealth ?? 0;
-        totals.honor += vote.scores?.honor ?? 0;
-      });
-
-      const count = votes.length;
-
-      setVoteCount(count);
-
-      setScores({
-        survival: averageToPercent(totals.survival, count),
-        goodness: averageToPercent(totals.goodness, count),
-        wealth: averageToPercent(totals.wealth, count),
-        honor: averageToPercent(totals.honor, count),
+    return subscribeToVotes((votes) => {
+      setCounts({
+        yes: votes.filter((answer) => answer === "yes").length,
+        no: votes.filter((answer) => answer === "no").length,
+        unknown: votes.filter((answer) => answer === "unknown").length,
       });
     });
-
-    return () => unsubscribe();
   }, []);
+
+  const voteCount = counts.yes + counts.no + counts.unknown;
 
   return (
     <main className="statistics-page">
       <section className="statistics-container">
         <div className="title-area">
-          <p className="eyebrow">SEOULARTS 특기</p>
-
+          <p className="eyebrow">서울예대 연극과 특기 시연</p>
           <h1>
-            센테(슈이타)
+            센테는
             <br />
-            능력치
+            선한가요?
           </h1>
-
-          <p className="vote-count">
-            현재 {voteCount}명의 평가
-          </p>
+          <p className="vote-count">현재 {voteCount}명의 투표</p>
         </div>
 
-        <div className="stats-layout">
-          <SurvivalCircle value={scores.survival} />
+        <div className="answer-list" aria-label="투표 결과">
+          {answers.map((answer) => {
+            const count = counts[answer];
+            const value = percentage(count, voteCount);
 
-          <div className="status-list">
-            <StatusBar
-              label="선함"
-              value={scores.goodness}
-            />
-
-            <StatusBar
-              label="부유함"
-              value={scores.wealth}
-            />
-
-            <StatusBar
-              label="명예로움"
-              value={scores.honor}
-            />
-          </div>
+            return (
+              <div className="answer-result" key={answer}>
+                <div className="answer-header">
+                  <span>{answerLabels[answer]}</span>
+                  <strong>{value}%</strong>
+                </div>
+                <div className="answer-track">
+                  <div className="answer-fill" style={{ width: `${value}%` }} />
+                </div>
+                <p>{count}표</p>
+              </div>
+            );
+          })}
         </div>
       </section>
 
@@ -226,7 +82,7 @@ export default function StatisticsPage() {
 
         .statistics-container {
           width: 100%;
-          max-width: 1200px;
+          max-width: 900px;
         }
 
         .title-area {
@@ -254,83 +110,37 @@ export default function StatisticsPage() {
           opacity: 0.45;
         }
 
-        .stats-layout {
-          display: grid;
-          grid-template-columns: 380px 1fr;
-          gap: 100px;
-          align-items: center;
-        }
-
-        .survival {
-          position: relative;
-          width: 280px;
-          height: 330px;
+        .answer-list {
           display: flex;
           flex-direction: column;
-          align-items: center;
-          justify-content: center;
+          gap: 34px;
         }
 
-        .survival-circle {
-          position: absolute;
-          top: 0;
-          left: 0;
+        .answer-result p {
+          margin: 10px 0 0;
+          color: #888;
+          font-size: 13px;
+          text-align: right;
         }
 
-        .survival-value {
-          position: relative;
-          margin-top: -5px;
-          display: flex;
-          align-items: baseline;
-          justify-content: center;
-        }
-
-        .survival-value span {
-          font-size: 68px;
-          font-weight: 700;
-          letter-spacing: -0.06em;
-        }
-
-        .survival-value small {
-          font-size: 25px;
-          margin-left: 4px;
-        }
-
-        .survival-label {
-          position: relative;
-          margin-top: 8px;
-          font-size: 16px;
-          letter-spacing: 0.15em;
-        }
-
-        .status-list {
-          display: flex;
-          flex-direction: column;
-          gap: 38px;
-        }
-
-        .status {
-          width: 100%;
-        }
-
-        .status-header {
+        .answer-header {
           display: flex;
           justify-content: space-between;
           align-items: baseline;
           margin-bottom: 12px;
         }
 
-        .status-header span {
+        .answer-header span {
           font-size: 20px;
           font-weight: 500;
         }
 
-        .status-header strong {
+        .answer-header strong {
           font-size: 22px;
           font-weight: 600;
         }
 
-        .status-track {
+        .answer-track {
           width: 100%;
           height: 16px;
           background: #292929;
@@ -338,33 +148,20 @@ export default function StatisticsPage() {
           overflow: hidden;
         }
 
-        .status-fill {
+        .answer-fill {
           height: 100%;
           background: #fff;
           border-radius: 100px;
           transition: width 0.8s ease;
         }
 
-        @media (max-width: 800px) {
+        @media (max-width: 600px) {
           .statistics-page {
             padding: 60px 25px;
           }
 
           .title-area {
             margin-bottom: 50px;
-          }
-
-          .stats-layout {
-            grid-template-columns: 1fr;
-            gap: 60px;
-          }
-
-          .survival {
-            margin: 0 auto;
-          }
-
-          .status-list {
-            gap: 30px;
           }
         }
       `}</style>

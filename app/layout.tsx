@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "센테(슈이타)를 평가해 주세요",
+  title: "센테를 평가해 주세요",
   description: "사천의 선인 인터랙티브 관객 평가",
 };
 
