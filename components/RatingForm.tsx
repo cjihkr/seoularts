@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { getMyVote, saveVote, type Answer } from "../lib/vote";
 
@@ -73,7 +74,14 @@ export default function RatingForm() {
             {saving ? "저장 중…" : "투표하기"}
           </button>
         )}
-        {submitted && <p className="message">투표가 완료되었어요.</p>}
+        {submitted && (
+          <>
+            <p className="message">투표가 완료되었어요.</p>
+            <Link className="secondary" href="/statistics">
+              결과 페이지 이동
+            </Link>
+          </>
+        )}
         {error && <p className="message error">{error}</p>}
       </div>
     </>

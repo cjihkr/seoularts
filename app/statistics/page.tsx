@@ -10,6 +10,11 @@ const answerLabels: Record<Answer, string> = {
 };
 
 const answers: Answer[] = ["yes", "no", "unknown"];
+const answerColors: Record<Answer, string> = {
+  yes: "#ffffff",
+  no: "#777777",
+  unknown: "#333333",
+};
 
 function percentage(count: number, total: number) {
   return total === 0 ? 0 : Math.round((count / total) * 100);
@@ -33,6 +38,18 @@ export default function StatisticsPage() {
   }, []);
 
   const voteCount = counts.yes + counts.no + counts.unknown;
+  const chartBackground =
+    voteCount === 0
+      ? "#292929"
+      : `conic-gradient(${answers
+          .map((answer, index) => {
+            const start = answers
+              .slice(0, index)
+              .reduce((total, item) => total + (counts[item] / voteCount) * 100, 0);
+            const end = start + (counts[answer] / voteCount) * 100;
+            return `${answerColors[answer]} ${start}% ${end}%`;
+          })
+          .join(", ")})`;
 
   return (
     <main className="statistics-page">
@@ -47,24 +64,38 @@ export default function StatisticsPage() {
           <p className="vote-count">현재 {voteCount}명의 투표</p>
         </div>
 
-        <div className="answer-list" aria-label="투표 결과">
-          {answers.map((answer) => {
-            const count = counts[answer];
-            const value = percentage(count, voteCount);
+        <div className="result-layout" aria-label="투표 결과">
+          <div
+            className="chart"
+            style={{ background: chartBackground }}
+            role="img"
+            aria-label={`전체 ${voteCount}표의 투표 결과`}
+          >
+            <div className="chart-center">
+              <strong>{voteCount}</strong>
+              <span>전체 투표</span>
+            </div>
+          </div>
 
-            return (
-              <div className="answer-result" key={answer}>
-                <div className="answer-header">
-                  <span>{answerLabels[answer]}</span>
-                  <strong>{value}%</strong>
+          <div className="answer-list">
+            {answers.map((answer) => {
+              const count = counts[answer];
+              const value = percentage(count, voteCount);
+
+              return (
+                <div className="answer-result" key={answer}>
+                  <div className="answer-header">
+                    <span>
+                      <i style={{ background: answerColors[answer] }} />
+                      {answerLabels[answer]}
+                    </span>
+                    <strong>{value}%</strong>
+                  </div>
+                  <p>{count}표</p>
                 </div>
-                <div className="answer-track">
-                  <div className="answer-fill" style={{ width: `${value}%` }} />
-                </div>
-                <p>{count}표</p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -110,17 +141,55 @@ export default function StatisticsPage() {
           opacity: 0.45;
         }
 
+        .result-layout {
+          display: grid;
+          grid-template-columns: 320px 1fr;
+          gap: 90px;
+          align-items: center;
+        }
+
+        .chart {
+          width: 320px;
+          height: 320px;
+          border-radius: 50%;
+          display: grid;
+          place-items: center;
+          transition: background 0.8s ease;
+        }
+
+        .chart-center {
+          width: 190px;
+          height: 190px;
+          border-radius: 50%;
+          background: #111;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .chart-center strong {
+          font-size: 56px;
+          line-height: 1;
+          letter-spacing: -0.06em;
+        }
+
+        .chart-center span {
+          margin-top: 8px;
+          color: #888;
+          font-size: 13px;
+        }
+
         .answer-list {
           display: flex;
           flex-direction: column;
-          gap: 34px;
+          gap: 28px;
         }
 
         .answer-result p {
-          margin: 10px 0 0;
+          margin: 8px 0 0 28px;
           color: #888;
           font-size: 13px;
-          text-align: right;
         }
 
         .answer-header {
@@ -131,28 +200,23 @@ export default function StatisticsPage() {
         }
 
         .answer-header span {
+          display: flex;
+          align-items: center;
+          gap: 10px;
           font-size: 20px;
           font-weight: 500;
+        }
+
+        .answer-header i {
+          display: inline-block;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
         }
 
         .answer-header strong {
           font-size: 22px;
           font-weight: 600;
-        }
-
-        .answer-track {
-          width: 100%;
-          height: 16px;
-          background: #292929;
-          border-radius: 100px;
-          overflow: hidden;
-        }
-
-        .answer-fill {
-          height: 100%;
-          background: #fff;
-          border-radius: 100px;
-          transition: width 0.8s ease;
         }
 
         @media (max-width: 600px) {
@@ -162,6 +226,22 @@ export default function StatisticsPage() {
 
           .title-area {
             margin-bottom: 50px;
+          }
+
+          .result-layout {
+            grid-template-columns: 1fr;
+            gap: 50px;
+          }
+
+          .chart {
+            width: min(280px, 80vw);
+            height: min(280px, 80vw);
+            margin: 0 auto;
+          }
+
+          .chart-center {
+            width: 165px;
+            height: 165px;
           }
         }
       `}</style>
